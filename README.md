@@ -6,7 +6,6 @@ We improve accuracy more by using better attention clue. The paper about new met
 
 
 <img src="./sample/TTVOS_gold-fish.gif" alt="sample ours hard"> 
-
 <img src="./sample/TTVOS_parkour.gif" alt="sample ours easy" > 
 
  
