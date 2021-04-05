@@ -14,7 +14,7 @@ We improve accuracy more by using better attention clue. The paper about new met
 ```bash
 python (>= 3.6)
 numpy
-pytorch (>= 1.6 probably)
+pytorch (>= 1.6)
 torchvision
 pillow
 tqdm
