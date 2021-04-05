@@ -56,7 +56,7 @@ Saliency dataset : download [here](https://drive.google.com/file/d/1DOg-OATFD33Z
 
 | model    |Backbone  | J & F 16| J & F 17| FPS   |link |
 |----------|:--------:|:-------:|:-------:|:-----:| :-----:|     
-| TTVOS-HR | HRNet    | 81.1    | 62.1    | 78.3  |[Google Drive](https://drive.google.com/file/d/1CedlOkynY9ja4Sd9q7wLO6-fELh_cM1R/view?usp=sharing)| 
+| TTVOS-HR | HRNet    | 81.1    | 62.1    | 78.3  |[Google Drive](https://drive.google.com/file/d/1TGKmjo1n6hdujy-vX6quNOZty67AYEQI/view?usp=sharing)| 
 
 
 ## Run
