@@ -13,7 +13,7 @@ We improve accuracy more by using better attention clue. The paper about new met
 ```bash
 python (>= 3.6)
 numpy
-pytorch (>= 1.6)
+pytorch (>= 1.8 )
 torchvision
 pillow
 tqdm
@@ -54,10 +54,12 @@ Saliency dataset : download [here](https://drive.google.com/file/d/1DOg-OATFD33Z
 
 ### DAVIS 
 
-| model    |Backbone  | J & F 16| J & F 17| FPS   |link |
-|----------|:--------:|:-------:|:-------:|:-----:| :-----:|     
-| TTVOS-HR | HRNet    | 81.1    | 62.1    | 78.3  |[Google Drive](https://drive.google.com/file/d/1TGKmjo1n6hdujy-vX6quNOZty67AYEQI/view?usp=sharing)| 
-
+|Backbone    | FLOP (G)| Param (M) |J & F 16 | J & F 17| FPS   |link |
+|:----------:|:-------:|:---------:|:-------:|:-------:|:-----:| :-----:|     
+| HRNet      | 10.61   | 1.61      |81.1     | 62.1    | 78.3  |[Google Drive](https://drive.google.com/file/d/1TGKmjo1n6hdujy-vX6quNOZty67AYEQI/view?usp=sharing)| 
+| RN18       | 55.23   | 12.5      |82.2     | 66.3    | 54.5  |[Google Drive](https://drive.google.com/file/d/1GKobJFymeYLvVtItUqi4mjtlptF5BXEq/view?usp=sharing)| 
+| RN50       | 83.86   | 14.8      |83.1     | 69.5    | 37.7  |[Google Drive](https://drive.google.com/file/d/1r_gU4JMiGXYf_radwy2JAZVjrZ_gTtNj/view?usp=sharing)| 
+| MobileNetV3| 7.56    | 3.66      |79.8     | 62.9    | 74.6  |[Google Drive](https://drive.google.com/file/d/1WXJWYT5P9nSW755wuuQT91Rrrx4HgIPP/view?usp=sharing)| 
 
 ## Run
 ### Train

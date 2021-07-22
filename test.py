@@ -19,12 +19,14 @@ parser = argparse.ArgumentParser(description='PyTorch VOS Training')
 #data_loading
 parser.add_argument('--cache_dir', default='./cache', type=str, help='cache dir')
 parser.add_argument('--Ytb_dir', default='/media/hyojin/SSD1TB1/Dataset/Youtube-VOS2019', type=str, help='Ytb dataset dir')
-parser.add_argument('--Davis_dir', default='/media/hyojin/SSD1TB1/Dataset//DAVIS', type=str, help='Davis dataset dir')
+parser.add_argument('--Davis_dir', default='/media/hyojin/SSD1TB1/Dataset/DAVIS', type=str, help='Davis dataset dir')
 
 parser.add_argument('--nnWeight', default='./nnWeight', type=str, help='nn_weights_path')
 
 #Model Strtucture
-parser.add_argument('--backbone', default='hrnetv2Sv1', choices=['resnet50s16', 'hrnetv2Sv1'], help='architecture of backbone model')
+parser.add_argument('--backbone', default='hrnetv2Sv1', choices=['resnet50s16', 'resnet18s16',
+                                                                     'mobileNetV3Larges16','hrnetv2Sv1'],
+                    help='architecture of backbone model')
 parser.add_argument('--refine', default='v3', choices=['v1', 'v2', 'v3'])
 parser.add_argument('--DiffLoss', default=True, choices=[True, False])
 parser.add_argument('--TmpLoss', default=True, choices=[True, False])
@@ -39,7 +41,8 @@ parser.add_argument("--debug",type=bool, default=False,help="Vis out detail feat
 parser.add_argument("--log",type=str, default="logTest.txt",help="Out log file")
 parser.add_argument("--TestInfo", default="False",help="show detail eval result")
 parser.add_argument('--save_dir', default='./save_dir/', type=str, help='save dir')
-parser.add_argument("--pth", default="TTVOS.pth.tar",help="get pth file")
+parser.add_argument("--pth", default="",help="get pth file")#RN18
+
 
 def main():
 
@@ -54,12 +57,22 @@ def main():
 
 
     if args.backbone == "resnet50s16":
-        _model = models.VOS(backbone=('resnet50s16', (True, ('layer4',), ('layer4',), ('layer2',), ('layer1',),
+        _model = models.VOS(backbone=('resnet50s16', (True, ('layer3',), ('layer3',), ('layer2',), ('layer1',),
                                         args.nnWeight)), mode='eval', args=args)
 
     elif "hrnet" in args.backbone :
 
         _model = models.VOS(backbone=(args.backbone, (True, ('stage4',),args.nnWeight)), mode='eval', args=args)
+
+    elif args.backbone == "resnet18s16" :
+
+        _model = models.VOS(backbone=('resnet18s16', (True,  ('layer4',), ('layer4',), ('layer2',), ('layer1',),
+                                                      args.nnWeight)), mode='eval', args=args)
+    elif "mobileNetV3" in args.backbone :
+
+        _model = models.VOS(backbone=(args.backbone, (True,  ('layer4',), ('layer4',), ('layer2',), ('layer1',),
+                                                      args.nnWeight)), mode='eval', args=args)
+
 
     # print(_model)
 

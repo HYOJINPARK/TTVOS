@@ -5,10 +5,11 @@ import os
 
 
 
-__all__ = ['ResNet', 'resnet50s16', 'resnet101s16']#, 'hrnetv1w', 'hrnetv1wrx', 'hrnetv1wmv1']
+__all__ = ['resnet18s16', 'resnet50s16', 'resnet101s16']#, 'hrnetv1w', 'hrnetv1wrx', 'hrnetv1wmv1']
 
 
 model_urls = {
+    'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
     'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
     'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
 }
@@ -24,10 +25,12 @@ class BasicBlock(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride,
+                     padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(planes, planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1,
+                     padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
         self.stride = stride
@@ -130,25 +133,6 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def get_feature_count(self):
-        return((2048, 512, 256))
-
-    def get_features(self, x):
-        feats = []
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        feats += [x]
-        x = self.maxpool(x)
-        x = self.layer1(x)
-        feats += [x]
-        x = self.layer2(x)
-        feats += [x]
-        x = self.layer3(x)
-        feats += [x]
-        x = self.layer4(x)
-        feats += [x]
-        return feats
 
     def forward(self, x):
         x = self.conv1(x)
@@ -177,12 +161,20 @@ class ResNetS16(ResNet):
         self.s4_feats = s4_feats
 
         self.layer4[0].downsample[0].stride = (1, 1)
-        self.layer4[0].conv2.stride = (1, 1)
-        for layer in self.layer4[1:]:
-            layer.conv2.dilation = (2, 2)
-            layer.conv2.padding = (2, 2)
-        # del self.avgpool
-        # del self.fc
+        if block == BasicBlock :
+            self.layer4[0].conv1.stride = (1, 1)
+            self.BlockType= 'BasicBlock'
+            for layer in self.layer4[1:]:
+                layer.conv2.dilation = (2, 2)
+                layer.conv2.padding = (2, 2)
+        else:
+            self.BlockType = 'BottleNeck'
+            for layer in self.layer3[4:]:
+                layer.conv2.dilation = (2, 2)
+                layer.conv2.padding = (2, 2)
+            del self.layer4
+        del self.avgpool
+        del self.fc
         # del self.layer4
 
         if finetune_layers[0]=='Not':
@@ -204,6 +196,12 @@ class ResNetS16(ResNet):
                 's8': torch.cat([feats[name] for name in self.s8_feats], dim=-1),
                 's4': torch.cat([feats[name] for name in self.s4_feats], dim=-1)}
 
+    def get_feature_count(self):
+        if self.BlockType == 'BottleNeck':
+            return((1024, 512, 256))
+        else:
+            return ((512,128,64))
+
     def get_features(self, x):
         feats = {}
         x = self.conv1(x)
@@ -217,8 +215,9 @@ class ResNetS16(ResNet):
         feats['layer2'] = x
         x = self.layer3(x)
         feats['layer3'] = x
-        x = self.layer4(x)
-        feats['layer4'] = x
+        if self.BlockType != 'BottleNeck':
+            x = self.layer4(x)
+            feats['layer4'] = x
         return self.get_return_values(feats)
 
     def train(self, mode):
@@ -239,13 +238,39 @@ class ResNetS16(ResNet):
     def eval(self):
         self.train(False)
 
+def resnet18s16(pretrained=False,  finetune_layers=(), s16_feats=('layer4',),
+                s8_feats=('layer2',), s4_feats=('layer1',), nn_weights_path='./', **kwargs):
+    """Constructs a ResNet-18 model.
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    print(s16_feats, s8_feats, s4_feats)
+    model = ResNetS16(finetune_layers, s16_feats, s8_feats, s4_feats,BasicBlock, [2, 2, 2, 2], **kwargs)
+    if pretrained :
+        if not os.path.isfile(nn_weights_path + "/resnet18-5c106cde.pth"):
+            print('download ResNet 18 offical pretrained file')
+            model_zoo.load_url(model_urls['resnet18'], model_dir=nn_weights_path)
+
+        print("load pretrained ResNet18 model")
+        DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.load_state_dict(torch.load(nn_weights_path + "/resnet18-5c106cde.pth", map_location=torch.device(DEVICE)),
+                              strict=False)
+    else:
+        print("Do not load pretrained model")
+    return model
+
+
 
 def resnet50s16(pretrained=False, finetune_layers=(), s16_feats=('layer4',),
                 s8_feats=('layer2',), s4_feats=('layer1',), nn_weights_path='./', **kwargs):
     print(s16_feats, s8_feats, s4_feats)
     model = ResNetS16(finetune_layers, s16_feats, s8_feats, s4_feats, Bottleneck, [3, 4, 6, 3], **kwargs)
-    if pretrained and os.path.isfile(nn_weights_path+"/resnet50-19c8e357.pth"):
-        print("load pretrained model")
+    if pretrained :
+        if not os.path.isfile(nn_weights_path+"/resnet50-19c8e357.pth"):
+            print('download ResNet 50 offical pretrained file')
+            model_zoo.load_url(model_urls['resnet50'],model_dir=nn_weights_path)
+        print("load pretrained ResNet50 model")
         DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.load_state_dict(torch.load(nn_weights_path+"/resnet50-19c8e357.pth",map_location=torch.device(DEVICE)),
                               strict=False)
@@ -257,50 +282,16 @@ def resnet50s16(pretrained=False, finetune_layers=(), s16_feats=('layer4',),
 def resnet101s16(pretrained=False, finetune_layers=(), s16_feats=('layer4',),
                  s8_feats=('layer2',), s4_feats=('layer1',),nn_weights_path='./',  **kwargs):
     model = ResNetS16(finetune_layers, s16_feats, s8_feats, s4_feats, Bottleneck, [3, 4, 23, 3], **kwargs)
-    if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet101'], model_dir=nn_weights_path))
+    file_name = model_urls['resnet101'].split('models/')[-1]
+    if pretrained and os.path.isfile(nn_weights_path + file_name):
+        if not os.path.isfile(nn_weights_path+file_name):
+            print('download ResNet 101 offical pretrained file')
+            model_zoo.load_url(model_urls['resnet101'],model_dir=nn_weights_path)
+
+        print("load pretrained ResNet101 model")
+        DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.load_state_dict(torch.load(nn_weights_path + file_name,
+                                         map_location=torch.device(DEVICE)), strict=False)
+    else:
+        print("Do not load pretrained model")
     return model
-#
-#
-# def hrnetv1w(pretrained=False, finetune_layers=(), s16_feats=(2), s8_feats=(1), s4_feats=(0),
-#             **kwargs):
-#     if os.path.isfile("/mnt/vol/gfsai-flash3-east/ai-group/users/gven/HRNet-Imagenet/experiments/cls_hrnet_w18_small_v1w_sgd_lr5e-2_wd1e-4_bs32_x100.yaml"):
-#         update_config_model(config, "/mnt/vol/gfsai-flash3-east/ai-group/users/gven/HRNet-Imagenet/experiments/cls_hrnet_w18_small_v1w_sgd_lr5e-2_wd1e-4_bs32_x100.yaml")
-#     else:
-#         update_config_model(config, "./hrnet/cls_hrnet_w18_small_v1w_sgd_lr5e-2_wd1e-4_bs32_x100.yaml")
-#
-#     features = get_cls_net(config)
-#     if pretrained and os.path.isdir("/mnt/vol/gfsai-flash3-east/ai-group/users/gven/imagenet/pretrained/hrnet/smallv1w/model_best.pth.tar"):
-#         DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#         state_dict = torch.load("/mnt/vol/gfsai-flash3-east/ai-group/users/gven/imagenet/pretrained/hrnet/smallv1w/model_best.pth.tar", map_location=torch.device(DEVICE))
-#         features.load_state_dict(state_dict)
-#     return(features)
-#
-#
-# def hrnetv1wrx(pretrained=False, finetune_layers=(), s16_feats=(2), s8_feats=(1), s4_feats=(0),
-#             **kwargs):
-#     if os.path.isfile("/mnt/vol/gfsai-flash3-east/ai-group/users/gven/HRNet-Imagenet/experiments/cls_hrnet_w18_small_v1wrx_sgd_lr5e-2_wd1e-4_bs32_x100.yaml"):
-#         update_config_model(config, "/mnt/vol/gfsai-flash3-east/ai-group/users/gven/HRNet-Imagenet/experiments/cls_hrnet_w18_small_v1wrx_sgd_lr5e-2_wd1e-4_bs32_x100.yaml")
-#     else:
-#         update_config_model(config, "./hrnet/cls_hrnet_w18_small_v1wrx_sgd_lr5e-2_wd1e-4_bs32_x100.yaml")
-#     features = get_cls_net(config)
-#     if False:
-#         DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#         state_dict = torch.load("/mnt/vol/gfsai-flash3-east/ai-group/users/gven/imagenet/pretrained/hrnet/smallv1w/model_best.pth.tar",map_location=torch.device(DEVICE))
-#         features.load_state_dict(state_dict)
-#     return(features)
-#
-#
-# def hrnetv1wmv1(pretrained=False, finetune_layers=(), s16_feats=(2), s8_feats=(1), s4_feats=(0),
-#             **kwargs):
-#     if os.path.isfile("/mnt/vol/gfsai-flash3-east/ai-group/users/gven/HRNet-Imagenet/experiments/cls_hrnet_w18_small_v1wmv1_sgd_lr5e-2_wd1e-4_bs32_x100.yaml"):
-#         update_config_model(config, "/mnt/vol/gfsai-flash3-east/ai-group/users/gven/HRNet-Imagenet/experiments/cls_hrnet_w18_small_v1wmv1_sgd_lr5e-2_wd1e-4_bs32_x100.yaml")
-#     else:
-#         update_config_model(config, "./hrnet/cls_hrnet_w18_small_v1wmv1_sgd_lr5e-2_wd1e-4_bs32_x100.yaml")
-#
-#     features = get_cls_net(config)
-#     if False:
-#         DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#         state_dict = torch.load("/mnt/vol/gfsai-flash3-east/ai-group/users/gven/imagenet/pretrained/hrnet/smallv1w/model_best.pth.tar",map_location=torch.device(DEVICE))
-#         features.load_state_dict(state_dict)
-#     return(features)

@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 
 import cv2
 import torch
@@ -25,18 +25,18 @@ parser = argparse.ArgumentParser(description='PyTorch Tracking VOS Training')
 # /media/hyojin/SSD1TB/Dataset
 parser.add_argument('--Saliency_batch', type=int, help='Batch size', default=48)
 parser.add_argument('--epochs_Saliency', type=int, help='Number of epochs for first training', default=100)
-parser.add_argument("--Saliency",type=bool, default=False,help=" Using Saliency dataset for train ", choices=[True, False])
+parser.add_argument("--Saliency",type=bool, default=True,help=" Using Saliency dataset for train ", choices=[True, False])
 parser.add_argument("--use_tps",type=bool, default=True,help=" Using TPS transform for train ")
 parser.add_argument("--color_aug",type=bool, default=False,help=" Using color_aug transform for train ")
 parser.add_argument("--nb_points",type=int, default=5,help=" Using color_aug transform for train ")
 parser.add_argument('--STrain_fN', default=[3], help='Num of train frame for Saliency dataset ')
 parser.add_argument('--SaliencySize', default=(240, 432), help='Training Saliency Training Size')
-parser.add_argument('--lr_Saliency', default=2e-4, type=float, help='learning rate(default: 1e-4)')
+parser.add_argument('--lr_Saliency', default=3e-4, type=float, help='learning rate(default: 1e-4)')
 parser.add_argument('--lrSch_Saliency', default='Not', choices=['Exp', 'WarmP', 'Step', 'Not'])
 
 parser.add_argument('--YTB_batch', type=int, help='Batch size', default=24)
 parser.add_argument('--epochs_Ytb', type=int, help='Number of epochs for first training', default=100)
-parser.add_argument("--YTB",type=bool, default=False,help=" Using YTB dataset for train ", choices=[True, False])
+parser.add_argument("--YTB",type=bool, default=True,help=" Using YTB dataset for train ", choices=[True, False])
 parser.add_argument("--YTB_trans",type=bool, default=True,help=" Using Affine transform for train ")
 parser.add_argument('--YTrain_fN', default=[8], help='Num of train frame for youtube dataset ')
 parser.add_argument('--YtbSize', default=(240, 432), help='Training Youtube Training Size')
@@ -49,7 +49,7 @@ parser.add_argument('--epochs_Davis', type=int, help='Number of epochs for secon
 parser.add_argument("--DAVIS",type=str, default=True,help=" Using DAVIS dataset for train ",choices=[True, False])
 parser.add_argument("--DAVISversion",type=str, default='All',help="DAVIS version for train ",choices=['2016', '2017', 'All'])
 parser.add_argument("--DAVIS_trans",type=bool, default=True,help=" Using Affine transform for train ")
-parser.add_argument('--DTrain_fN', default=[8], help='Num of train frame for Davis dataset')
+parser.add_argument('--DTrain_fN', default=[7], help='Num of train frame for Davis dataset')
 parser.add_argument('--DavisSize', default=(480, 864), help='Training Davis Training Size')
 parser.add_argument('--lr_DAVIS', default=1e-4, type=float, help='learning rate(default: 1e-4)')
 parser.add_argument('--lrSch_DAVIS', default='Not', choices=['Exp', 'WarmP', 'Mstep', 'Not'])
@@ -59,11 +59,12 @@ parser.add_argument('--save_dir', default='./save_dir', type=str, help='save dir
 parser.add_argument('--cache_dir', default='./cache', type=str, help='cache dir')
 parser.add_argument('--saliency_dir', default='/media/hyojin/SSD1TB1/Dataset/Saliency', type=str, help='Ytb dataset dir')
 parser.add_argument('--Ytb_dir', default='/media/hyojin/SSD1TB1/Dataset/Youtube-VOS2019', type=str, help='Ytb dataset dir')
-parser.add_argument('--Davis_dir', default='/media/hyojin/SSD1TB1/Dataset//DAVIS', type=str, help='Davis dataset dir')
+parser.add_argument('--Davis_dir', default='/media/hyojin/SSD1TB1/Dataset/DAVIS', type=str, help='Davis dataset dir')
 parser.add_argument('--nnWeight', default='./nnWeight', type=str, help='nn_weights_path')
 
 #Model Strtucture
-parser.add_argument('--backbone', default='hrnetv2Sv1', choices=['resnet50s16', 'hrnetv2Sv1'],
+parser.add_argument('--backbone', default='hrnetv2Sv1', choices=['resnet50s16', 'resnet18s16',
+                                                                     'mobileNetV3Larges16','hrnetv2Sv1'],
                     help='architecture of backbone model')
 parser.add_argument('--refine', default='v3', choices=['v1', 'v2', 'v3'])
 
@@ -84,7 +85,7 @@ parser.add_argument('--MultiLR', default=False,choices=[True, False])
 parser.add_argument('--Multi_W', default=[1.0, 10.0])
 
 parser.add_argument('--freeze', default=True,  help='free in resNet')
-parser.add_argument('--train_layer', default=('stage4',),  help='free in backbone like layer4 , stage4 ')
+parser.add_argument('--train_layer', default=('layer3',),  help='free in backbone like stage4 for hrnet, layer4 for others', )
 
 # Etc/
 parser.add_argument("--resume",type=str, default="",help="Resume from First Train")
@@ -131,15 +132,25 @@ def main():
         add_file_handler('global', args.log, logging.INFO)
     logger = logging.getLogger('global')
 
-    if args.backbone == "resnet50s16" and (args.freeze==False) :
+    if args.backbone == "resnet50s16" :
 
         if args.freeze:
-            _model = models.VOS( backbone=('resnet50s16', (True, args.train_layer, ('layer4',), ('layer2',), ('layer1',),
+            _model = models.VOS( backbone=('resnet50s16', (True, args.train_layer, ('layer3',), ('layer2',), ('layer1',),
                                           args.nnWeight)), mode='train', args=args)
         else:
-            _model = models.VOS(backbone=('resnet50s16', (True, ('layer4', 'layer3', 'layer2', 'layer1'),
+            _model = models.VOS(backbone=('resnet50s16', (True, ('layer3', 'layer2', 'layer1'),
+                              ('layer3',), ('layer2',), ('layer1',),args.nnWeight)), mode='train', args=args)
+            logger.info("Train every layers of ResNet50")
+
+    elif args.backbone == "resnet18s16" :
+
+        if args.freeze:
+            _model = models.VOS( backbone=('resnet18s16', (True, args.train_layer, ('layer4',), ('layer2',), ('layer1',),
+                                          args.nnWeight)), mode='train', args=args)
+        else:
+            _model = models.VOS(backbone=('resnet18s16', (True, ('layer4', 'layer3', 'layer2', 'layer1'),
                               ('layer4',), ('layer2',), ('layer1',),args.nnWeight)), mode='train', args=args)
-            logger.info("Train every layers of ResNet")
+            logger.info("Train every layers of ResNet18")
 
 
     elif "hrnet" in args.backbone :
@@ -149,6 +160,16 @@ def main():
         else:
             _model = models.VOS(backbone=(args.backbone, (True, ('Not',), args.nnWeight)), mode='train', args=args)
             logger.info("Train every layers of HRNet")
+
+    elif "mobileNetV3" in args.backbone :
+
+        if args.freeze:
+            _model = models.VOS(backbone=(args.backbone, (True, args.train_layer, ('layer4',), ('layer2',), ('layer1',),
+                                          args.nnWeight)), mode='train', args=args)
+        else:
+            _model = models.VOS(backbone=(args.backbone,  (True, ('layer4', 'layer3', 'layer2', 'layer1'),
+                              ('layer4',), ('layer2',), ('layer1',),args.nnWeight)), mode='train', args=args)
+            logger.info("Train every layers of mobileNetV3")
 
 
 
@@ -240,11 +261,11 @@ def main():
         else:
             model = model.cuda()
 
-        opt_ep, prefix = train_Saliency(model, args, tb_logger)
+        opt_ep, prefix = train_Saliency(model, args, 100)
         pthname = '{}_ep{:04d}.pth.tar'.format(prefix, args.epochs_Saliency)
         logger.info("-----end Saliency VOS training Best: {}-----".format(pthname))
 
-    args.val_type = 'officialOnly'
+
     if args.YTB:
         logger.info("------------ start YTB VOS training --------------")
 
@@ -259,10 +280,10 @@ def main():
             model = model.cuda()
 
         opt_ep, prefix = train_YTB(model, args, tb_logger)
-        pthname = '{}_ep{:04d}.pth.tar'.format(prefix, opt_ep)
+        pthname = '{}_ep{:04d}.pth.tar'.format(prefix, 100)
         logger.info("-----end YTB VOS training Best: {}-----".format(pthname))
 
-
+    args.val_type = 'officialOnly'
     if args.DAVIS:
         logger.info("----------- start DAVIS VOS training -------------")
         model = _model
@@ -278,6 +299,7 @@ def main():
         opt_ep, prefix = train_DAVIS(model,args, tb_logger)
         pthname = '{}_ep{:04d}.pth.tar'.format(prefix, opt_ep)
         logger.info("---end DAVIS training Best: {}------".format(pthname))
+
 
 if __name__ == '__main__':
     main()
