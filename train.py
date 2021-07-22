@@ -1,5 +1,5 @@
 import os
-# os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 
 import cv2
 import torch
@@ -31,7 +31,7 @@ parser.add_argument("--color_aug",type=bool, default=False,help=" Using color_au
 parser.add_argument("--nb_points",type=int, default=5,help=" Using color_aug transform for train ")
 parser.add_argument('--STrain_fN', default=[3], help='Num of train frame for Saliency dataset ')
 parser.add_argument('--SaliencySize', default=(240, 432), help='Training Saliency Training Size')
-parser.add_argument('--lr_Saliency', default=3e-4, type=float, help='learning rate(default: 1e-4)')
+parser.add_argument('--lr_Saliency', default=2e-4, type=float, help='learning rate(default: 1e-4)')
 parser.add_argument('--lrSch_Saliency', default='Not', choices=['Exp', 'WarmP', 'Step', 'Not'])
 
 parser.add_argument('--YTB_batch', type=int, help='Batch size', default=24)
@@ -85,7 +85,7 @@ parser.add_argument('--MultiLR', default=False,choices=[True, False])
 parser.add_argument('--Multi_W', default=[1.0, 10.0])
 
 parser.add_argument('--freeze', default=True,  help='free in resNet')
-parser.add_argument('--train_layer', default=('layer3',),  help='free in backbone like stage4 for hrnet, layer4 for others', )
+parser.add_argument('--train_layer', default=('stage4',),  help='free in backbone like stage4 for hrnet, layer4 for others', )
 
 # Etc/
 parser.add_argument("--resume",type=str, default="",help="Resume from First Train")
@@ -261,7 +261,7 @@ def main():
         else:
             model = model.cuda()
 
-        opt_ep, prefix = train_Saliency(model, args, 100)
+        opt_ep, prefix = train_Saliency(model, args, tb_logger)
         pthname = '{}_ep{:04d}.pth.tar'.format(prefix, args.epochs_Saliency)
         logger.info("-----end Saliency VOS training Best: {}-----".format(pthname))
 
@@ -280,7 +280,7 @@ def main():
             model = model.cuda()
 
         opt_ep, prefix = train_YTB(model, args, tb_logger)
-        pthname = '{}_ep{:04d}.pth.tar'.format(prefix, 100)
+        pthname = '{}_ep{:04d}.pth.tar'.format(prefix, args.epochs_Ytb)
         logger.info("-----end YTB VOS training Best: {}-----".format(pthname))
 
     args.val_type = 'officialOnly'
